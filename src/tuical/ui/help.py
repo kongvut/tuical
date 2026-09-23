@@ -1,4 +1,4 @@
-"""Help overlay: static keybinding table."""
+"""Help overlay: auto-generated from keymap.KEYMAP."""
 
 from __future__ import annotations
 
@@ -7,22 +7,9 @@ import curses
 
 from .. import store
 from . import common
+from .keymap import KEYMAP, render_help
 
-HELP_TEXT = """\
-  tuical — keybindings
-
-  q / Ctrl-C     quit
-  hjkl / arrows  move cursor (mode-adaptive)
-  g / G          today / end of period
-  y m w d a      switch view (year/month/week/day/agenda)
-  n / N          next / prev period
-  t / + / -      today / forward 1 / back 1
-  Enter          add event at cursor
-  e              edit event at cursor
-  D              delete event at cursor
-  /              search by summary
-  :              command palette (goto/export/import/quit)
-"""
+HELP_TEXT = render_help(KEYMAP)
 
 
 def render(stdscr, state, cfg, h: int, w: int) -> None:
