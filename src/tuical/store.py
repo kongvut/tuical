@@ -45,6 +45,11 @@ def lock_path(path: Path) -> Path:
     return path.with_suffix(path.suffix + ".lock")
 
 
+def backup_path(path: Path) -> Path:
+    """Sidecar backup file path: events.json → events.json.bak."""
+    return path.with_suffix(path.suffix + ".bak")
+
+
 @contextlib.contextmanager
 def _flock(path: Path, exclusive: bool):
     """Acquire fcntl flock on a sidecar .lock file.
@@ -100,8 +105,11 @@ def save(path: Path, events: list[Event]) -> None:
             for e in events
         ],
     }
+    backup = backup_path(path)
     tmp = path.with_suffix(path.suffix + ".tmp")
     with _flock(lock_path(path), exclusive=True):
+        if path.exists():
+            backup.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
         with tmp.open("w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2, ensure_ascii=False)
             fh.write("\n")
