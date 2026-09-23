@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Local-only terminal calendar (TUI)"
 requires-python = ">=3.11"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "Kongvut Sangkla" }]
 
 [project.scripts]
