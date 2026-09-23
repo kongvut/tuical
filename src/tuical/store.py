@@ -1,7 +1,9 @@
-"""Event model + JSON load/save."""
+"""Event model + JSON load/save with cross-process locking."""
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import json
 import uuid
 from dataclasses import dataclass, field
@@ -38,10 +40,34 @@ def make_all_day(summary: str, day: date) -> Event:
     return Event(summary=summary, start=start, end=end, all_day=True)
 
 
+def lock_path(path: Path) -> Path:
+    """Sidecar lock file path: events.json → events.json.lock."""
+    return path.with_suffix(path.suffix + ".lock")
+
+
+@contextlib.contextmanager
+def _flock(path: Path, exclusive: bool):
+    """Acquire fcntl flock on a sidecar .lock file.
+
+    Falls back to a no-op on platforms where fcntl is unavailable
+    (e.g. Windows). The lock file itself is created if missing.
+    """
+    op = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+    with path.open("a", encoding="utf-8") as lf:
+        try:
+            fcntl.flock(lf.fileno(), op)
+            yield
+        except (OSError, AttributeError):
+            yield
+        finally:
+            with contextlib.suppress(OSError, AttributeError):
+                fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+
+
 def load(path: Path) -> list[Event]:
     if not path.exists():
         return []
-    with path.open("r", encoding="utf-8") as fh:
+    with _flock(lock_path(path), exclusive=False), path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
     if not isinstance(data, dict) or data.get("version") != 1:
         raise ValueError(f"unsupported store format in {path}")
@@ -75,7 +101,8 @@ def save(path: Path, events: list[Event]) -> None:
         ],
     }
     tmp = path.with_suffix(path.suffix + ".tmp")
-    with tmp.open("w", encoding="utf-8") as fh:
-        json.dump(payload, fh, indent=2, ensure_ascii=False)
-        fh.write("\n")
-    tmp.replace(path)
+    with _flock(lock_path(path), exclusive=True):
+        with tmp.open("w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        tmp.replace(path)
