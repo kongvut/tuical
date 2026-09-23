@@ -86,3 +86,30 @@ def hour_range(events: list, hour_start: int, hour_end: int) -> tuple[int, int]:
     if lo >= hi:
         lo, hi = hour_start, hour_end
     return lo, hi
+
+
+def safe_replace(
+    d: date,
+    *,
+    year: int | None = None,
+    month: int | None = None,
+    day: int | None = None,
+) -> date:
+    """Like date.replace but clamps day to the new month's last day."""
+    y = d.year if year is None else year
+    m = d.month if month is None else month
+    target_day = d.day if day is None else day
+    _, last = calendar.monthrange(y, m)
+    return date(y, m, min(target_day, last))
+
+
+def mini_month_lines(year: int, month: int) -> list[str]:
+    """Lines for a 3x4 mini-month cell (header + day rows, no weekday labels)."""
+    cal = calendar.Calendar(firstweekday=0)
+    weeks = cal.monthdayscalendar(year, month)
+    head = f"{MONTH_NAMES[month][:3]} '{year % 100:02d}"
+    lines = [head]
+    for week in weeks:
+        cells = ["  ." if d == 0 else f"{d:>3}" for d in week]
+        lines.append("".join(cells))
+    return lines

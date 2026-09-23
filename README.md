@@ -45,14 +45,26 @@ Per `SPEC.md`:
 
 ## Views implemented
 
+- **Year** (`y`) — 3x4 grid of mini months, cursor month=reverse, today=bold
 - **Month** (`m`) — 7-col Mon–Sun grid, event marker `•`, today=bold, cursor=reverse
 - **Week** (`w`) — 7-day hourly grid (TUICAL_HOUR_START..TUICAL_HOUR_END), all-day strip
 - **Day** (`d`) — single-day hourly grid with auto-extended range to fit late/early events
+- **Agenda** (`a`) — sorted event list within today ± 30 days
+
+## v0.5 features
+
+- `/` search by summary (case-insensitive substring, jumps cursor to first match)
+- `?` help overlay listing all keybindings (Esc/q/?/Enter to dismiss)
+- `:` command palette:
+  - `goto YYYY-MM-DD` — move cursor to date
+  - `export <path>` — write `.ics` (RFC 5545)
+  - `import <path>` — read `.ics`, merge by UID (replace existing, append new)
+  - `quit` — exit
 
 ## Status
 
 - ✅ v0.1 — month + add/edit/delete + JSON store
 - ✅ v0.2 — week + day + full vim-style keybindings
-- ⏳ v0.3 — year + agenda
-- ⏳ v0.4 — .ics import/export (RFC 5545)
-- ⏳ v0.5 — search + help + command palette
+- ✅ v0.3 — year + agenda
+- ✅ v0.4 — .ics import/export (VEVENT, floating local time + VALUE=DATE, no VTIMEZONE/RRULE)
+- ✅ v0.5 — search + help + command palette

@@ -8,15 +8,21 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 
 from . import config as cfg_mod
-from . import store
+from . import ical, store
+from .ui import agenda as agenda_view
 from .ui import day as day_view
+from .ui import help as help_view
 from .ui import month as month_view
 from .ui import week as week_view
+from .ui import year as year_view
 
 VIEWS = {
     "month": month_view,
     "week": week_view,
     "day": day_view,
+    "year": year_view,
+    "agenda": agenda_view,
+    "help": help_view,
 }
 
 
@@ -38,10 +44,13 @@ class State:
     view_year: int = 0
     view_month: int = 0
     cursor: date = field(default_factory=date.today)
+    cursor_event_idx: int = 0
     mode: str = "month"
     prev_mode: str = "month"
     pending_key: int | None = None
     form: Form | None = None
+    search_buf: str = ""
+    palette_buf: str = ""
     status: str = ""
     quit: bool = False
 
@@ -65,17 +74,24 @@ def main(stdscr) -> None:
         if state.mode == "input":
             handle_input(state, key)
             continue
+        if state.mode == "search":
+            handle_search(state, key)
+            continue
+        if state.mode == "palette":
+            handle_palette(state, key)
+            continue
 
         if key in (ord("q"), 3):  # q or Ctrl-C
             state.quit = True
-        elif key in (ord("y"), ord("m"), ord("w"), ord("d")):
-            new_mode = {"y": "year", "m": "month", "w": "week", "d": "day"}[chr(key)]
-            if new_mode == "year":
-                state.status = "year view: v0.3"
-                continue
+        elif key in (ord("y"), ord("m"), ord("w"), ord("d"), ord("a")):
+            new_mode = {
+                "y": "year",
+                "m": "month",
+                "w": "week",
+                "d": "day",
+                "a": "agenda",
+            }[chr(key)]
             state.mode = new_mode
-        elif key == ord("a"):
-            state.status = "agenda view: v0.3"
         elif key in (10, 13, curses.KEY_ENTER):
             start_form(state, "add")
         elif key == ord("e"):
@@ -83,11 +99,16 @@ def main(stdscr) -> None:
         elif key == ord("D"):
             start_form(state, "delete")
         elif key == ord("?"):
-            state.status = "help: v0.5 (keys listed in status bar)"
+            state.prev_mode = state.mode
+            state.mode = "help"
         elif key == ord("/"):
-            state.status = "search: v0.5"
+            state.prev_mode = state.mode
+            state.mode = "search"
+            state.search_buf = ""
         elif key == ord(":"):
-            state.status = "command palette: v0.5"
+            state.prev_mode = state.mode
+            state.mode = "palette"
+            state.palette_buf = ""
         elif state.mode in VIEWS:
             VIEWS[state.mode].handle(state, key)
 
@@ -103,6 +124,14 @@ def render(stdscr, state: State, cfg: cfg_mod.Config) -> None:
         prompt = f"{state.form.fields[state.form.idx][0]}{state.form.buf}"
         with contextlib.suppress(curses.error):
             stdscr.addnstr(h - 2, 0, prompt[: w - 1], w - 1, curses.A_REVERSE)
+    elif state.mode == "search":
+        prompt = f"Search: {state.search_buf}"[: w - 1]
+        with contextlib.suppress(curses.error):
+            stdscr.addnstr(h - 2, 0, prompt, w - 1, curses.A_REVERSE)
+    elif state.mode == "palette":
+        prompt = f":{state.palette_buf}"[: w - 1]
+        with contextlib.suppress(curses.error):
+            stdscr.addnstr(h - 2, 0, prompt, w - 1, curses.A_REVERSE)
     if state.status:
         with contextlib.suppress(curses.error):
             stdscr.addnstr(h - 1, 0, f" {state.status[: w - 2]}", w - 1, curses.A_REVERSE)
@@ -175,6 +204,113 @@ def handle_input(state: State, key: int) -> None:
     if 32 <= key <= 126:
         with contextlib.suppress(ValueError):
             form.buf += chr(key)
+
+
+def handle_search(state: State, key: int) -> None:
+    if key == 27:
+        state.mode = state.prev_mode
+        state.search_buf = ""
+        state.status = "search cancelled"
+        return
+    if key in (curses.KEY_BACKSPACE, 127, 8):
+        state.search_buf = state.search_buf[:-1]
+        return
+    if key in (10, 13, curses.KEY_ENTER):
+        commit_search(state)
+        return
+    if 32 <= key <= 126:
+        with contextlib.suppress(ValueError):
+            state.search_buf += chr(key)
+
+
+def commit_search(state: State) -> None:
+    needle = state.search_buf.strip().lower()
+    state.search_buf = ""
+    state.mode = state.prev_mode
+    if not needle:
+        state.status = "search: empty needle"
+        return
+    for ev in sorted(state.events, key=lambda e: e.start):
+        if needle in ev.summary.lower():
+            state.cursor = ev.start.date()
+            state.view_year = ev.start.year
+            state.view_month = ev.start.month
+            state.status = f"found: {ev.summary}"
+            return
+    state.status = "no match"
+
+
+def handle_palette(state: State, key: int) -> None:
+    if key == 27:
+        state.mode = state.prev_mode
+        state.palette_buf = ""
+        state.status = "palette cancelled"
+        return
+    if key in (curses.KEY_BACKSPACE, 127, 8):
+        state.palette_buf = state.palette_buf[:-1]
+        return
+    if key in (10, 13, curses.KEY_ENTER):
+        commit_palette(state)
+        return
+    if 32 <= key <= 126:
+        with contextlib.suppress(ValueError):
+            state.palette_buf += chr(key)
+
+
+def commit_palette(state: State) -> None:
+    line = state.palette_buf.strip()
+    state.palette_buf = ""
+    state.mode = state.prev_mode
+    if not line:
+        state.status = "palette: empty"
+        return
+    parts = line.split(maxsplit=1)
+    cmd = parts[0]
+    arg = parts[1] if len(parts) > 1 else ""
+    if cmd == "goto":
+        try:
+            d = date.fromisoformat(arg)
+        except ValueError:
+            state.status = f"bad date: {arg!r}"
+            return
+        state.cursor = d
+        state.view_year = d.year
+        state.view_month = d.month
+        state.status = f"goto {d.isoformat()}"
+    elif cmd == "export":
+        if not arg:
+            state.status = "export needs path"
+            return
+        try:
+            ical.export_to_path(arg, state.events)
+        except OSError as e:
+            state.status = f"export failed: {e}"
+            return
+        state.status = f"exported {len(state.events)} event(s) to {arg}"
+    elif cmd == "import":
+        if not arg:
+            state.status = "import needs path"
+            return
+        try:
+            new_events = ical.import_from_path(arg)
+        except (OSError, ValueError) as e:
+            state.status = f"import failed: {e}"
+            return
+        existing = {e.id: i for i, e in enumerate(state.events)}
+        added = 0
+        replaced = 0
+        for ev in new_events:
+            if ev.id in existing:
+                state.events[existing[ev.id]] = ev
+                replaced += 1
+            else:
+                state.events.append(ev)
+                added += 1
+        state.status = f"imported {added} new, replaced {replaced} from {arg}"
+    elif cmd == "quit":
+        state.quit = True
+    else:
+        state.status = f"unknown command: {cmd}"
 
 
 def commit_form(state: State) -> None:
