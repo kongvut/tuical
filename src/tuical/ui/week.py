@@ -1,4 +1,4 @@
-"""Week view: 7-day hourly grid."""
+"""Week view: 7-day hourly grid with event-cell background colors."""
 
 from __future__ import annotations
 
@@ -19,15 +19,8 @@ def _week_days(cursor: date) -> list[date]:
 
 def render(stdscr, state, cfg, h: int, w: int) -> None:
     days = _week_days(state.cursor)
-    start, end = days[0], days[-1]
-    same_month = start.month == end.month
-    if same_month:
-        title = f" {common.MONTH_NAMES[start.month]} {start.year} — week of {start.isoformat()} "
-    else:
-        title = (
-            f" {common.MONTH_NAMES[start.month]}–{common.MONTH_NAMES[end.month]} "
-            f"{start.year} — week of {start.isoformat()} "
-        )
+    start = days[0]
+    title = f" week of {start.isoformat()} "
     with contextlib.suppress(curses.error):
         stdscr.addnstr(
             0, 0, title[: w - 1].center(w), w - 1, common.COLORS.get("title", curses.A_BOLD)
@@ -76,6 +69,7 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
         stdscr.hline(row, 0, curses.ACS_HLINE, w)
     row += 1
 
+    bg = common.COLORS["block_timed_bg"]
     hour_row_start = row
     for hour in range(h_lo, h_hi):
         y = hour_row_start + (hour - h_lo)
@@ -88,18 +82,20 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
             cell_events = [
                 ev for ev in events_by_day.get(d, []) if not ev.all_day and ev.start.hour == hour
             ]
-            attr = curses.A_NORMAL
-            if d == state.cursor:
-                attr |= curses.A_REVERSE
-            content = ""
             if cell_events:
-                content = "•" + cell_events[0].summary[: col_w - 1]
+                content = " " + cell_events[0].summary[: col_w - 2]
                 if len(cell_events) > 1:
                     content = content[: col_w - 1] + "+"
-            with contextlib.suppress(curses.error):
-                stdscr.addnstr(y, x, content[:col_w].ljust(col_w), col_w, attr)
+                attr = bg
+                if d == state.cursor:
+                    attr = bg | curses.A_BOLD
+                with contextlib.suppress(curses.error):
+                    stdscr.addnstr(y, x, content[:col_w].ljust(col_w), col_w, attr)
+            elif d == state.cursor:
+                with contextlib.suppress(curses.error):
+                    stdscr.addnstr(y, x, " " * col_w, col_w, curses.A_REVERSE)
 
-    nav_hint = "  nav: hjkl · n/N week · g today · t/+/-  "
+    nav_hint = "  nav: hjkl day · j/k n/N week · g today  "
     with contextlib.suppress(curses.error):
         stdscr.addnstr(h - 1, 0, nav_hint[: w - 1], w - 1, common.COLORS["dim"])
 

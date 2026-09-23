@@ -14,9 +14,13 @@ WEEKDAYS = common.WEEKDAYS
 
 
 def render(stdscr, state, cfg, h: int, w: int) -> None:
-    title = f" {common.MONTH_NAMES[state.view_month]} {state.view_year} "
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(0, 0, title.center(w), w - 1, common.COLORS.get("title", curses.A_BOLD))
+        stdscr.addnstr(
+            0, 0,
+            f" {common.MONTH_NAMES[state.view_month]} {state.view_year} "[: w - 1].center(w),
+            w - 1,
+            common.COLORS.get("title", curses.A_BOLD),
+        )
 
     col_w = max(3, (w - 2) // 7)
     grid_left = max(0, (w - col_w * 7) // 2)
@@ -42,12 +46,12 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
             cell_date = date(state.view_year, state.view_month, day)
             count = len(events_by_day.get(cell_date, []))
             attr = curses.A_NORMAL
+            if col >= 5 and cell_date != today:
+                attr |= common.COLORS["weekend"]
+            if cell_date == today:
+                attr |= common.COLORS["today"]
             if cell_date == state.cursor:
                 attr |= curses.A_REVERSE
-            elif cell_date == today:
-                attr |= common.COLORS["today"]
-            elif col >= 5:
-                attr |= common.COLORS["weekend"]
             day_str = f"{day}"
             if count:
                 day_str = day_str + "•"
@@ -70,7 +74,7 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
             with contextlib.suppress(curses.error):
                 stdscr.addnstr(footer_y + 1 + i, 0, line[: w - 1], w - 1, attr)
 
-    nav_hint = "  nav: hjkl · n/N period · g today · t/+/-  "
+    nav_hint = "  nav: hjkl · n/N month · g today  "
     with contextlib.suppress(curses.error):
         stdscr.addnstr(h - 1, 0, nav_hint[: w - 1], w - 1, common.COLORS["dim"])
 

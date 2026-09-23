@@ -39,7 +39,9 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
         f" Agenda — {len(events)} event(s) within {today.isoformat()} ± {PAST_DAYS}d "
     )
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(0, 0, head.center(w), w - 1, common.COLORS.get("title", curses.A_BOLD))
+        stdscr.addnstr(
+            0, 0, head[: w - 1].center(w), w - 1, common.COLORS.get("title", curses.A_BOLD)
+        )
     with contextlib.suppress(curses.error):
         stdscr.addnstr(
             1, 0, "Date        Time           Summary"[: w - 1], w - 1, common.COLORS["dim"]

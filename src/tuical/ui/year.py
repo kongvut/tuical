@@ -12,9 +12,11 @@ from . import common
 
 
 def render(stdscr, state, cfg, h: int, w: int) -> None:
-    title = f" {state.view_year} "
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(0, 0, title.center(w), w - 1, common.COLORS.get("title", curses.A_BOLD))
+        stdscr.addnstr(
+            0, 0, f" {state.view_year} "[: w - 1].center(w), w - 1,
+            common.COLORS.get("title", curses.A_BOLD),
+        )
 
     cols, rows = 3, 4
     cell_w = max(20, (w - 2) // cols)
@@ -39,7 +41,7 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
         if is_cursor:
             head_attr |= curses.A_REVERSE
         if is_today:
-            head_attr = common.COLORS["today"]
+            head_attr |= common.COLORS["today"]
         head = f"{common.MONTH_NAMES[month][:3]} '{state.view_year % 100:02d}"
         with contextlib.suppress(curses.error):
             stdscr.addnstr(y_off, x_off, head.ljust(cell_w)[:cell_w], cell_w, head_attr)
@@ -52,7 +54,7 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
                 if day == 0:
                     cells.append("  .")
                 elif date(state.view_year, month, day) == today:
-                    cells.append(" ▎ ")
+                    cells.append(" T ")
                 else:
                     cells.append(f"{day:>3}")
             with contextlib.suppress(curses.error):

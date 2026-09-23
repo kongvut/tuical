@@ -41,6 +41,8 @@ def init_colors() -> None:
         "status_bg": curses.A_REVERSE,
         "title": curses.A_BOLD,
         "dim": curses.A_DIM,
+        "block_timed_bg": curses.A_REVERSE,
+        "block_allday_bg": curses.A_NORMAL | curses.A_BOLD,
     }
     try:
         if not curses.has_colors():
@@ -55,10 +57,16 @@ def init_colors() -> None:
         curses.init_pair(6, curses.COLOR_MAGENTA, -1)
         curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLUE)
         curses.init_pair(8, curses.COLOR_BLACK, curses.COLOR_CYAN)
+        curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_BLUE)
+        curses.init_pair(10, curses.COLOR_BLACK, curses.COLOR_GREEN)
+        curses.init_pair(11, curses.COLOR_BLACK, curses.COLOR_MAGENTA)
         COLORS.update(
             {
                 "today": curses.color_pair(1) | curses.A_BOLD,
                 "allday": curses.color_pair(2),
+                "block_timed_bg": curses.color_pair(9),
+                "block_allday_bg": curses.color_pair(8),
+                "block_alt_bg": curses.color_pair(10),
                 "accent": curses.color_pair(3) | curses.A_BOLD,
                 "weekend": curses.color_pair(6),
                 "warn": curses.color_pair(5) | curses.A_BOLD,

@@ -86,6 +86,11 @@ def main(stdscr) -> None:
 
         if key in (ord("q"), 3):  # q or Ctrl-C
             state.quit = True
+        elif key == 27 and state.mode in VIEWS and state.mode != "help":
+            old_mode = state.mode
+            if state.prev_mode and state.prev_mode != state.mode:
+                state.mode = state.prev_mode
+                state.prev_mode = old_mode
         elif key in (ord("y"), ord("m"), ord("w"), ord("d"), ord("a")):
             new_mode = {
                 "y": "year",
@@ -94,7 +99,9 @@ def main(stdscr) -> None:
                 "d": "day",
                 "a": "agenda",
             }[chr(key)]
-            state.mode = new_mode
+            if new_mode != state.mode:
+                state.prev_mode = state.mode
+                state.mode = new_mode
         elif key in (10, 13, curses.KEY_ENTER):
             start_form(state, "add")
         elif key == ord("e"):
