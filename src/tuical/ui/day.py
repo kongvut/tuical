@@ -17,8 +17,11 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
     d = state.cursor
     dow = d.weekday()
     title = f" {WEEKDAY_FULL[dow]} {d.isoformat()} "
+    title_attr = common.COLORS["today"] if d == date.today() else common.COLORS.get(
+        "title", curses.A_BOLD
+    )
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(0, 0, title.center(w), w - 1, curses.A_BOLD)
+        stdscr.addnstr(0, 0, title.center(w), w - 1, title_attr)
 
     time_col = 6
     content_left = time_col + 1
@@ -34,10 +37,12 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
     row = 2
     if all_day:
         with contextlib.suppress(curses.error):
-            stdscr.addnstr(row, 0, "all-day", time_col, curses.A_DIM)
+            stdscr.addnstr(row, 0, "all-day", time_col, common.COLORS["dim"])
         names = " · ".join(ev.summary for ev in all_day)
         with contextlib.suppress(curses.error):
-            stdscr.addnstr(row, content_left, names[: content_w], content_w)
+            stdscr.addnstr(
+                row, content_left, names[: content_w], content_w, common.COLORS["allday"]
+            )
         row += 1
         with contextlib.suppress(curses.error):
             stdscr.hline(row, 0, curses.ACS_HLINE, w)
@@ -53,7 +58,7 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
         if y >= h - 1:
             break
         with contextlib.suppress(curses.error):
-            stdscr.addnstr(y, 0, f"{hour:02d}:00", time_col, curses.A_DIM)
+            stdscr.addnstr(y, 0, f"{hour:02d}:00", time_col, common.COLORS["dim"])
         in_hour = [
             ev
             for ev in timed
@@ -68,14 +73,9 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
         with contextlib.suppress(curses.error):
             stdscr.addnstr(y, content_left, line[: content_w], content_w)
 
+    nav_hint = "  nav: hl · j/k/n/N day · g today · t/+/-  "
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(
-            h - 1,
-            0,
-            " Enter:add e:edit D:del n/N:day hjkl:day/hour g:today m/w/d/a:view ?:help q:quit ",
-            w - 1,
-            curses.A_DIM,
-        )
+        stdscr.addnstr(h - 1, 0, nav_hint[: w - 1], w - 1, common.COLORS["dim"])
 
 
 def handle(state, key: int) -> None:
@@ -88,7 +88,7 @@ def handle(state, key: int) -> None:
     elif key in (ord("g"), ord("t")):
         state.cursor = date.today()
     elif key == ord("G"):
-        pass  # single day, no end-of-period
+        pass
     elif key in (ord("+"), ord("=")):
         state.cursor = state.cursor + timedelta(days=1)
     elif key in (ord("-"), ord("_")):

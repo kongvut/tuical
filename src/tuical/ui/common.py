@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import calendar
+import curses
 from datetime import date, timedelta
 
 WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
@@ -22,6 +23,65 @@ MONTH_NAMES = [
     "November",
     "December",
 ]
+
+# Color pairs — populated by init_colors() when the terminal supports them.
+# Module-level dict so views can reference common.COLORS["today"] without threading state.
+COLORS: dict[str, int] = {}
+
+
+def init_colors() -> None:
+    """Initialize curses color pairs. Falls back to plain attrs on failure."""
+    global COLORS
+    COLORS = {
+        "today": curses.A_BOLD,
+        "allday": curses.A_NORMAL,
+        "accent": curses.A_BOLD,
+        "weekend": curses.A_DIM,
+        "warn": curses.A_BOLD | curses.A_REVERSE,
+        "status_bg": curses.A_REVERSE,
+        "title": curses.A_BOLD,
+        "dim": curses.A_DIM,
+    }
+    try:
+        if not curses.has_colors():
+            return
+        curses.start_color()
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_GREEN, -1)
+        curses.init_pair(2, curses.COLOR_CYAN, -1)
+        curses.init_pair(3, curses.COLOR_BLUE, -1)
+        curses.init_pair(4, curses.COLOR_YELLOW, -1)
+        curses.init_pair(5, curses.COLOR_RED, -1)
+        curses.init_pair(6, curses.COLOR_MAGENTA, -1)
+        curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLUE)
+        curses.init_pair(8, curses.COLOR_BLACK, curses.COLOR_CYAN)
+        COLORS.update(
+            {
+                "today": curses.color_pair(1) | curses.A_BOLD,
+                "allday": curses.color_pair(2),
+                "accent": curses.color_pair(3) | curses.A_BOLD,
+                "weekend": curses.color_pair(6),
+                "warn": curses.color_pair(5) | curses.A_BOLD,
+                "status_bg": curses.color_pair(7) | curses.A_BOLD,
+                "title": curses.color_pair(4) | curses.A_BOLD,
+                "dim": curses.A_DIM,
+            }
+        )
+    except curses.error:
+        pass
+
+
+def status_bar(mode: str, cursor: date, event_count: int, w: int) -> tuple[str, int]:
+    """Return (text, attr) for the unified top status bar."""
+    weekday = WEEKDAYS[cursor.weekday()]
+    cursor_str = cursor.strftime("%d %b %Y")
+    text = (
+        f"  {mode.upper():>7}  "
+        f"{weekday} {cursor_str}  "
+        f"·  cursor {cursor.isoformat()}  "
+        f"·  {event_count} event(s)  "
+    )
+    return text.center(w), COLORS.get("status_bg", curses.A_REVERSE)
 
 
 def shift_month(view_year: int, view_month: int, delta: int) -> tuple[int, int]:

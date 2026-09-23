@@ -6,6 +6,7 @@ import contextlib
 import curses
 
 from .. import store
+from . import common
 
 HELP_TEXT = """\
   tuical — keybindings
@@ -27,17 +28,18 @@ HELP_TEXT = """\
 def render(stdscr, state, cfg, h: int, w: int) -> None:
     title = " Help — press Esc/q/? to dismiss "[: w - 1]
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(0, 0, title.center(w), w - 1, curses.A_BOLD)
+        stdscr.addnstr(0, 0, title.center(w), w - 1, common.COLORS.get("title", curses.A_BOLD))
     lines = HELP_TEXT.splitlines()
-    y_start = max(1, (h - len(lines)) // 2)
+    y_start = max(2, (h - len(lines)) // 2)
     width = max(10, min(w - 2, 60))
     x_start = max(0, (w - width) // 2)
     for i, line in enumerate(lines):
         y = y_start + i
         if y >= h - 1:
             break
+        attr = common.COLORS["title"] if line.strip().startswith("tuical") else curses.A_NORMAL
         with contextlib.suppress(curses.error):
-            stdscr.addnstr(y, x_start, line[:width], width)
+            stdscr.addnstr(y, x_start, line[:width], width, attr)
 
 
 def handle(state, key: int) -> None:

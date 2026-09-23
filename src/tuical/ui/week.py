@@ -29,18 +29,24 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
             f"{start.year} — week of {start.isoformat()} "
         )
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(0, 0, title[: w - 1].center(w), w - 1, curses.A_BOLD)
+        stdscr.addnstr(
+            0, 0, title[: w - 1].center(w), w - 1, common.COLORS.get("title", curses.A_BOLD)
+        )
 
     time_col = 5
     grid_w = max(7, w - time_col - 1)
     col_w = max(1, grid_w // 7)
     grid_left = time_col + 1
+    today = date.today()
 
     for i, d in enumerate(days):
         x = grid_left + i * col_w
         header = f"{WEEKDAYS[i]} {d.day}"
+        attr = common.COLORS["weekend"] if i >= 5 else common.COLORS["dim"]
+        if d == today:
+            attr = common.COLORS["today"]
         with contextlib.suppress(curses.error):
-            stdscr.addnstr(1, x, header[:col_w].ljust(col_w), col_w, curses.A_DIM)
+            stdscr.addnstr(1, x, header[:col_w].ljust(col_w), col_w, attr)
 
     events_by_day: dict[date, list[store.Event]] = {}
     for ev in state.events:
@@ -64,7 +70,7 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
     if flat:
         text = "all-day: " + " · ".join(flat)
         with contextlib.suppress(curses.error):
-            stdscr.addnstr(row, 0, text[: w - 1], w - 1)
+            stdscr.addnstr(row, 0, text[: w - 1], w - 1, common.COLORS["allday"])
         row += 1
     with contextlib.suppress(curses.error):
         stdscr.hline(row, 0, curses.ACS_HLINE, w)
@@ -76,7 +82,7 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
         if y >= h - 1:
             break
         with contextlib.suppress(curses.error):
-            stdscr.addnstr(y, 0, f"{hour:02d}:00", time_col, curses.A_DIM)
+            stdscr.addnstr(y, 0, f"{hour:02d}:00", time_col, common.COLORS["dim"])
         for i, d in enumerate(days):
             x = grid_left + i * col_w
             cell_events = [
@@ -93,14 +99,9 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
             with contextlib.suppress(curses.error):
                 stdscr.addnstr(y, x, content[:col_w].ljust(col_w), col_w, attr)
 
+    nav_hint = "  nav: hjkl · n/N week · g today · t/+/-  "
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(
-            h - 1,
-            0,
-            " Enter:add e:edit D:del n/N:week hjkl:day/week g:today m/w/d/a:view ?:help q:quit ",
-            w - 1,
-            curses.A_DIM,
-        )
+        stdscr.addnstr(h - 1, 0, nav_hint[: w - 1], w - 1, common.COLORS["dim"])
 
 
 def handle(state, key: int) -> None:

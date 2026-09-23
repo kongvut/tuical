@@ -7,6 +7,7 @@ import curses
 from datetime import date, timedelta
 
 from .. import store
+from . import common
 
 PAST_DAYS = 30
 
@@ -38,9 +39,11 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
         f" Agenda — {len(events)} event(s) within {today.isoformat()} ± {PAST_DAYS}d "
     )
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(0, 0, head.center(w), w - 1, curses.A_BOLD)
+        stdscr.addnstr(0, 0, head.center(w), w - 1, common.COLORS.get("title", curses.A_BOLD))
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(1, 0, "Date        Time           Summary"[: w - 1], w - 1, curses.A_DIM)
+        stdscr.addnstr(
+            1, 0, "Date        Time           Summary"[: w - 1], w - 1, common.COLORS["dim"]
+        )
 
     cursor_ev = (
         events[state.cursor_event_idx]
@@ -52,23 +55,26 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
     for ev in events:
         if row >= h - 1:
             break
-        attr = curses.A_REVERSE if ev is cursor_ev else curses.A_NORMAL
+        attr = curses.A_NORMAL
+        if ev is cursor_ev:
+            attr |= curses.A_REVERSE
+        if ev.all_day:
+            attr |= common.COLORS["allday"]
+        elif ev.start.date() < today:
+            attr |= common.COLORS["weekend"]
+        elif ev.start.date() == today:
+            attr |= common.COLORS["today"]
         with contextlib.suppress(curses.error):
             stdscr.addnstr(row, 0, _line(ev, w), w - 1, attr)
         row += 1
 
     if not events:
         with contextlib.suppress(curses.error):
-            stdscr.addnstr(2, 0, " (no events)", w - 1, curses.A_DIM)
+            stdscr.addnstr(2, 0, " (no events)", w - 1, common.COLORS["dim"])
 
+    nav_hint = "  nav: j/k n/N · g today · G last  "
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(
-            h - 1,
-            0,
-            " Enter:add e:edit D:del n/j:next N/k:prev g:today m/w/d/a:view ?:help q:quit ",
-            w - 1,
-            curses.A_DIM,
-        )
+        stdscr.addnstr(h - 1, 0, nav_hint[: w - 1], w - 1, common.COLORS["dim"])
 
 
 def handle(state, key: int) -> None:

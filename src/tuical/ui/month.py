@@ -16,14 +16,15 @@ WEEKDAYS = common.WEEKDAYS
 def render(stdscr, state, cfg, h: int, w: int) -> None:
     title = f" {common.MONTH_NAMES[state.view_month]} {state.view_year} "
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(0, 0, title.center(w), w - 1, curses.A_BOLD)
+        stdscr.addnstr(0, 0, title.center(w), w - 1, common.COLORS.get("title", curses.A_BOLD))
 
     col_w = max(3, (w - 2) // 7)
     grid_left = max(0, (w - col_w * 7) // 2)
     for i, lbl in enumerate(WEEKDAYS):
         x = grid_left + i * col_w
+        attr = common.COLORS["weekend"] if i >= 5 else common.COLORS["dim"]
         with contextlib.suppress(curses.error):
-            stdscr.addnstr(1, x, lbl.center(col_w)[:col_w], col_w, curses.A_DIM)
+            stdscr.addnstr(1, x, lbl.center(col_w)[:col_w], col_w, attr)
 
     events_by_day: dict[date, list[store.Event]] = {}
     for ev in state.events:
@@ -43,8 +44,10 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
             attr = curses.A_NORMAL
             if cell_date == state.cursor:
                 attr |= curses.A_REVERSE
-            if cell_date == today:
-                attr |= curses.A_BOLD
+            elif cell_date == today:
+                attr |= common.COLORS["today"]
+            elif col >= 5:
+                attr |= common.COLORS["weekend"]
             day_str = f"{day}"
             if count:
                 day_str = day_str + "•"
@@ -59,21 +62,17 @@ def render(stdscr, state, cfg, h: int, w: int) -> None:
         events = sorted(events_by_day.get(state.cursor, []), key=lambda e: e.start)
         head = f" {state.cursor.isoformat()}  {len(events)} event(s) "
         with contextlib.suppress(curses.error):
-            stdscr.addnstr(footer_y, 0, head[: w - 1], w - 1, curses.A_BOLD)
+            stdscr.addnstr(footer_y, 0, head[: w - 1], w - 1, common.COLORS["title"])
         for i, ev in enumerate(events[: max(0, h - footer_y - 2)]):
             time_str = "   " if ev.all_day else ev.start.strftime("%H:%M")
+            attr = common.COLORS["allday"] if ev.all_day else curses.A_NORMAL
             line = f"  {time_str}  {ev.summary}"
             with contextlib.suppress(curses.error):
-                stdscr.addnstr(footer_y + 1 + i, 0, line[: w - 1], w - 1)
+                stdscr.addnstr(footer_y + 1 + i, 0, line[: w - 1], w - 1, attr)
 
+    nav_hint = "  nav: hjkl · n/N period · g today · t/+/-  "
     with contextlib.suppress(curses.error):
-        stdscr.addnstr(
-            h - 1,
-            0,
-            " Enter:add e:edit D:del n/N:month hjkl:nav g:today m/w/d/a:view ?:help q:quit ",
-            w - 1,
-            curses.A_DIM,
-        )
+        stdscr.addnstr(h - 1, 0, nav_hint[: w - 1], w - 1, common.COLORS["dim"])
 
 
 def handle(state, key: int) -> None:

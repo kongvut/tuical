@@ -10,6 +10,7 @@ from datetime import date, datetime, time, timedelta
 from . import config as cfg_mod
 from . import ical, store
 from .ui import agenda as agenda_view
+from .ui import common
 from .ui import day as day_view
 from .ui import help as help_view
 from .ui import month as month_view
@@ -63,6 +64,8 @@ class State:
 
 def main(stdscr) -> None:
     cfg = cfg_mod.Config.load()
+    if cfg.use_color:
+        common.init_colors()
     state = State(events=store.load(cfg.data_path))
     with contextlib.suppress(curses.error):
         curses.curs_set(0)
@@ -120,6 +123,10 @@ def render(stdscr, state: State, cfg: cfg_mod.Config) -> None:
     h, w = stdscr.getmaxyx()
     if state.mode in VIEWS:
         VIEWS[state.mode].render(stdscr, state, cfg, h, w)
+    if state.mode != "help":
+        text, attr = common.status_bar(state.mode, state.cursor, len(state.events), w)
+        with contextlib.suppress(curses.error):
+            stdscr.addnstr(0, 0, text[: w - 1], w - 1, attr)
     if state.mode == "input" and state.form is not None:
         prompt = f"{state.form.fields[state.form.idx][0]}{state.form.buf}"
         with contextlib.suppress(curses.error):
