@@ -23,8 +23,3 @@ Events live in `~/.config/tuical/events.json` by default. Override with `TUICAL_
 | `TUICAL_HOUR_END` | `22` | Week/day view end hour |
 | `TUICAL_24H` | `1` | `0` for 12-hour clock |
 | `NO_COLOR` | (unset) | If set, disable color |
-
-## v0.1 keys (month view)
-
-`a` add · `e` edit · `d` delete · `n`/`p` next/prev month · `g` today ·
-`h`/`j`/`k`/`l` or arrows to move · `q` quit
